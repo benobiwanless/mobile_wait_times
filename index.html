@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#07111f" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-title" content="Park Waits" />
-  <title>Theme Park Wait Times v12</title>
+  <title>Theme Park Wait Times v13</title>
   <style>
     :root {
       --bg: #07111f;
@@ -173,13 +173,39 @@
       box-shadow: var(--shadow);
     }
 
+    .summary-title-row {
+      display: grid;
+      grid-template-columns: 1fr 42px;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+
     .park-summary h2 {
-      margin: 0 0 6px;
+      margin: 0;
       font-size: 1.02rem;
       letter-spacing: -.025em;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+    }
+
+    .summary-fav-btn {
+      min-height: 38px;
+      height: 38px;
+      padding: 0;
+      border-radius: 999px;
+      font-size: 1.15rem;
+      line-height: 1;
+      background: rgba(255,255,255,.11);
+      color: var(--text);
+      border: 1px solid var(--line);
+    }
+
+    .summary-fav-btn.is-favorite {
+      background: rgba(255, 209, 102, .2);
+      border-color: rgba(255, 209, 102, .55);
+      color: var(--yellow);
     }
 
     .summary-line {
@@ -359,7 +385,10 @@
     </header>
 
     <section id="summary" class="park-summary" hidden>
-      <h2 id="summaryParkName">Selected Park</h2>
+      <div class="summary-title-row">
+        <h2 id="summaryParkName">Selected Park</h2>
+        <button id="summaryFavoriteBtn" class="summary-fav-btn" title="Favorite park" aria-label="Favorite park">☆</button>
+      </div>
       <div class="summary-line">
         <span id="openClosedText">—</span>
         <span id="avgWaitText">Average Wait: —</span>
@@ -393,6 +422,7 @@
       updatedText: document.querySelector("#updatedText"),
       summary: document.querySelector("#summary"),
       summaryParkName: document.querySelector("#summaryParkName"),
+      summaryFavoriteBtn: document.querySelector("#summaryFavoriteBtn"),
       openClosedText: document.querySelector("#openClosedText"),
       avgWaitText: document.querySelector("#avgWaitText"),
       longestWaitText: document.querySelector("#longestWaitText"),
@@ -650,6 +680,7 @@
 
       els.summary.hidden = false;
       els.summaryParkName.textContent = park ? park.name : "Selected Park";
+      updateSummaryFavoriteButton();
       els.openClosedText.textContent = `${operating} Open • ${closed} Closed/Down • ${rides.length} Attractions`;
       els.avgWaitText.textContent = avg === null ? "Average Wait: —" : `Average Wait: ${avg} min`;
       els.longestWaitText.textContent = high === null || !longestRide ? "Longest: —" : `Longest: ${longestRide.name} • ${high} min`;
@@ -697,6 +728,33 @@
           </div>
           <div class="wait ${color}">${wait === null ? "—" : wait}<small>${wait === null ? "no wait" : "min"}</small></div>
         </article>`;
+    }
+
+    function updateSummaryFavoriteButton() {
+      const parkId = state.currentParkId || els.parkSelect.value;
+      const isFav = state.favorites.has(parkId);
+      els.summaryFavoriteBtn.textContent = isFav ? "★" : "☆";
+      els.summaryFavoriteBtn.classList.toggle("is-favorite", isFav);
+      els.summaryFavoriteBtn.title = isFav ? "Remove favorite" : "Favorite park";
+      els.summaryFavoriteBtn.setAttribute("aria-label", isFav ? "Remove favorite" : "Favorite park");
+    }
+
+    function toggleSummaryFavorite() {
+      const parkId = state.currentParkId || els.parkSelect.value;
+      if (!parkId) return;
+
+      if (state.favorites.has(parkId)) state.favorites.delete(parkId);
+      else state.favorites.add(parkId);
+
+      localStorage.setItem(FAVORITES_KEY, JSON.stringify([...state.favorites]));
+      state.parks = [...state.parks].sort((a, b) => {
+        const af = state.favorites.has(a.id) ? 0 : 1;
+        const bf = state.favorites.has(b.id) ? 0 : 1;
+        return af - bf || `${a.name} ${a.destinationName}`.localeCompare(`${b.name} ${b.destinationName}`);
+      });
+
+      renderParkOptions();
+      updateSummaryFavoriteButton();
     }
 
     function escapeHtml(value) {
@@ -754,6 +812,7 @@
     });
     els.rideSelect.addEventListener("change", renderRides);
     els.refreshBtn.addEventListener("click", () => loadLiveData(true));
+    els.summaryFavoriteBtn.addEventListener("click", toggleSummaryFavorite);
     els.sortSelect.addEventListener("change", () => {
       state.sortMode = els.sortSelect.value;
       renderRides();
