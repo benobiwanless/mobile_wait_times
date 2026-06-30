@@ -66,6 +66,7 @@
 
     input, select, button {
       width: 100%;
+      min-height: 52px;
       border: 1px solid var(--line);
       border-radius: 16px;
       background: rgba(255,255,255,.1);
@@ -93,7 +94,6 @@
     }
 
     .icon-btn {
-      font-size: 1.2rem;
       padding-left: 10px;
       padding-right: 10px;
     }
@@ -111,6 +111,12 @@
     button {
       cursor: pointer;
       font-weight: 750;
+      background: rgba(255,255,255,.11);
+      color: var(--text);
+      border: 1px solid var(--line);
+    }
+
+    #refreshBtn {
       background: linear-gradient(135deg, rgba(118,169,255,.95), rgba(46,229,157,.85));
       color: #08111d;
       border: 0;
@@ -141,12 +147,12 @@
     button:disabled { opacity: .55; cursor: not-allowed; }
 
     .statusbar {
-      margin: 14px 2px 0;
+      margin: 10px 2px 0;
       color: var(--muted);
       display: flex;
       justify-content: space-between;
       gap: 10px;
-      font-size: .84rem;
+      font-size: .82rem;
       flex-wrap: wrap;
     }
 
@@ -309,8 +315,8 @@
     <header>
       <h1>Theme Park Wait Times</h1>
 <section class="controls" aria-label="Controls">
-        <input id="parkSearch" type="search" placeholder="Search parks: EPCOT, Universal, Tokyo…" autocomplete="off" />
-        <select id="parkSelect" aria-label="Choose a park">
+        <input id="parkSearch" class="wide" type="search" placeholder="Search parks: EPCOT, Universal, Tokyo…" autocomplete="off" />
+        <select id="parkSelect" class="wide" aria-label="Choose a park">
           <option value="">Loading parks…</option>
         </select>
 
@@ -319,17 +325,17 @@
           <button class="chip" data-filter="favorite">★ Favorites</button>
         </div>
 
-        <select id="rideSelect" aria-label="Choose a ride" disabled>
+        <select id="rideSelect" class="wide" aria-label="Choose a ride" disabled>
           <option value="">Choose a park first…</option>
         </select>
 
         <div class="action-row wide">
-          <button id="favoriteBtn" class="secondary icon-btn" disabled title="Favorite park">☆</button>
-          <button id="refreshBtn" disabled>🔄 Refresh</button>
+          <button id="favoriteBtn" class="secondary icon-btn" disabled title="Favorite park">☆ Favorite</button>
+          <button id="refreshBtn" disabled>Refresh</button>
           <select id="sortSelect" aria-label="Sort rides" disabled>
-            <option value="wait" selected>⇅ Wait</option>
-            <option value="name">A-Z Name</option>
-            <option value="status">🚦 Status</option>
+            <option value="wait" selected>Sort: Wait</option>
+            <option value="name">Sort: Name</option>
+            <option value="status">Sort: Status</option>
           </select>
         </div>
         <button id="installBtn" class="secondary wide" hidden>Install app</button>
@@ -683,7 +689,7 @@
     function updateFavoriteButton() {
       const parkId = els.parkSelect.value;
       const isFav = state.favorites.has(parkId);
-      els.favoriteBtn.textContent = isFav ? "★" : "☆";
+      els.favoriteBtn.textContent = isFav ? "★ Favorited" : "☆ Favorite";
       els.favoriteBtn.title = isFav ? "Remove favorite" : "Favorite park";
       els.favoriteBtn.disabled = !parkId;
     }
