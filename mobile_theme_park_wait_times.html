@@ -1,0 +1,753 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#07111f" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="Park Waits" />
+  <title>Theme Park Wait Times</title>
+  <style>
+    :root {
+      --bg: #07111f;
+      --panel: rgba(255,255,255,.08);
+      --panel-2: rgba(255,255,255,.12);
+      --text: #f4f7fb;
+      --muted: #a8b3c5;
+      --line: rgba(255,255,255,.14);
+      --green: #2ee59d;
+      --yellow: #ffd166;
+      --orange: #ff9f43;
+      --red: #ff5d73;
+      --blue: #76a9ff;
+      --shadow: 0 18px 50px rgba(0,0,0,.28);
+      --radius: 22px;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at top left, rgba(63,116,255,.35), transparent 34rem),
+        radial-gradient(circle at bottom right, rgba(46,229,157,.18), transparent 30rem),
+        var(--bg);
+      color: var(--text);
+    }
+
+    .app {
+      width: min(800px, 100%);
+      margin: 0 auto;
+      padding: max(18px, env(safe-area-inset-top)) 14px max(24px, env(safe-area-inset-bottom));
+    }
+
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      padding: 12px 0 14px;
+      backdrop-filter: blur(18px);
+      background: linear-gradient(to bottom, rgba(7,17,31,.97), rgba(7,17,31,.78), transparent);
+    }
+
+    h1 {
+      margin: 4px 4px 12px;
+      font-size: clamp(1.55rem, 7vw, 2.35rem);
+      letter-spacing: -.045em;
+      line-height: 1;
+    }
+
+    .subhead {
+      margin: -4px 6px 14px;
+      color: var(--muted);
+      font-size: .92rem;
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+
+    input, select, button {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: rgba(255,255,255,.1);
+      color: var(--text);
+      padding: 14px 14px;
+      font: inherit;
+      outline: none;
+      box-shadow: none;
+    }
+
+    input::placeholder { color: rgba(244,247,251,.55); }
+    select { appearance: none; }
+    option { color: #111; }
+
+    .button-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .quick-row {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding: 2px 2px 4px;
+      scrollbar-width: none;
+    }
+
+    .quick-row::-webkit-scrollbar { display: none; }
+
+    button {
+      cursor: pointer;
+      font-weight: 750;
+      background: linear-gradient(135deg, rgba(118,169,255,.95), rgba(46,229,157,.85));
+      color: #08111d;
+      border: 0;
+    }
+
+    button.secondary {
+      background: rgba(255,255,255,.11);
+      color: var(--text);
+      border: 1px solid var(--line);
+    }
+
+    button.chip {
+      flex: 0 0 auto;
+      width: auto;
+      padding: 9px 12px;
+      font-size: .82rem;
+      border-radius: 999px;
+      background: rgba(255,255,255,.09);
+      color: var(--text);
+      border: 1px solid var(--line);
+    }
+
+    button.chip.active {
+      background: rgba(118,169,255,.25);
+      border-color: rgba(118,169,255,.55);
+    }
+
+    button:disabled { opacity: .55; cursor: not-allowed; }
+
+    .statusbar {
+      margin: 14px 2px 0;
+      color: var(--muted);
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: .84rem;
+      flex-wrap: wrap;
+    }
+
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin: 14px 0;
+    }
+
+    .metric {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 12px;
+      box-shadow: var(--shadow);
+      min-height: 70px;
+    }
+
+    .metric strong {
+      display: block;
+      font-size: 1.25rem;
+      letter-spacing: -.035em;
+    }
+
+    .metric span { color: var(--muted); font-size: .74rem; }
+
+    .list { display: grid; gap: 12px; }
+
+    .group {
+      display: grid;
+      gap: 10px;
+    }
+
+    .group-title {
+      margin: 8px 4px 0;
+      color: var(--muted);
+      font-weight: 850;
+      font-size: .83rem;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 14px;
+      box-shadow: var(--shadow);
+    }
+
+    .ride {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .ride h2 {
+      margin: 0 0 8px;
+      font-size: 1.03rem;
+      line-height: 1.2;
+    }
+
+    .meta {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+      color: var(--muted);
+      font-size: .8rem;
+    }
+
+    .pill {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 4px 8px;
+      background: rgba(255,255,255,.06);
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .pill.operating, .pill.open { color: var(--green); border-color: rgba(46,229,157,.35); }
+    .pill.down, .pill.closed, .pill.refurbishment { color: var(--red); border-color: rgba(255,93,115,.35); }
+    .pill.virtual { color: var(--blue); border-color: rgba(118,169,255,.35); }
+
+    .wait {
+      min-width: 82px;
+      text-align: right;
+      font-weight: 950;
+      font-size: 1.55rem;
+      letter-spacing: -.05em;
+    }
+
+    .wait small {
+      display: block;
+      font-size: .72rem;
+      color: var(--muted);
+      font-weight: 650;
+      letter-spacing: 0;
+      margin-top: 2px;
+    }
+
+    .wait.green { color: var(--green); }
+    .wait.yellow { color: var(--yellow); }
+    .wait.orange { color: var(--orange); }
+    .wait.red { color: var(--red); }
+
+    .empty, .error {
+      text-align: center;
+      padding: 26px 18px;
+      color: var(--muted);
+    }
+
+    .error { color: #ffd1d8; }
+
+    .spinner {
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255,255,255,.2);
+      border-top-color: var(--text);
+      border-radius: 50%;
+      animation: spin .8s linear infinite;
+      display: inline-block;
+      vertical-align: middle;
+      margin-right: 8px;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    footer {
+      margin: 24px 4px 0;
+      color: var(--muted);
+      font-size: .78rem;
+      line-height: 1.45;
+      text-align: center;
+    }
+
+    @media (min-width: 620px) {
+      .controls { grid-template-columns: 1fr 1fr; }
+      .wide { grid-column: span 2; }
+      .button-row { grid-column: span 2; }
+    }
+
+    @media (max-width: 420px) {
+      .summary { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header>
+      <h1>Theme Park Wait Times</h1>
+      <p class="subhead">Search ThemeParks.wiki parks, favorite your regulars, and view live ride waits.</p>
+
+      <section class="controls" aria-label="Controls">
+        <input id="parkSearch" type="search" placeholder="Search parks: EPCOT, Universal, Tokyo…" autocomplete="off" />
+        <select id="parkSelect" aria-label="Choose a park">
+          <option value="">Loading parks…</option>
+        </select>
+
+        <div class="quick-row wide" aria-label="Quick park filters">
+          <button class="chip active" data-filter="">All</button>
+          <button class="chip" data-filter="favorite">★ Favorites</button>
+          <button class="chip" data-filter="disney">Disney</button>
+          <button class="chip" data-filter="universal">Universal</button>
+          <button class="chip" data-filter="seaworld">SeaWorld</button>
+          <button class="chip" data-filter="busch">Busch Gardens</button>
+        </div>
+
+        <select id="rideSelect" aria-label="Choose a ride" disabled>
+          <option value="">Choose a park first…</option>
+        </select>
+
+        <div class="button-row">
+          <button id="favoriteBtn" class="secondary" disabled>☆ Favorite park</button>
+          <button id="installBtn" class="secondary" hidden>Install app</button>
+          <button id="refreshBtn" disabled>Refresh waits</button>
+          <button id="sortBtn" class="secondary" disabled>Sort: Wait</button>
+        </div>
+      </section>
+
+      <div class="statusbar">
+        <span id="statusText">Starting up…</span>
+        <span id="updatedText"></span>
+      </div>
+    </header>
+
+    <section id="summary" class="summary" hidden>
+      <div class="metric"><strong id="openCount">0</strong><span>Operating</span></div>
+      <div class="metric"><strong id="avgWait">—</strong><span>Avg standby</span></div>
+      <div class="metric"><strong id="highestWait">—</strong><span>Highest wait</span></div>
+      <div class="metric"><strong id="rideCount">0</strong><span>Attractions</span></div>
+    </section>
+
+    <section id="list" class="list" aria-live="polite"></section>
+
+    <footer>
+      Data from ThemeParks.wiki. Auto-refresh runs every 5 minutes while a park is selected. Live data depends on what each park publishes and may be missing or stale when a park is closed.
+    </footer>
+  </main>
+
+  <script>
+    const API = "https://api.themeparks.wiki/v1";
+    const FIVE_MINUTES = 5 * 60 * 1000;
+    const FAVORITES_KEY = "tpw.favoriteParks.v1";
+
+    const els = {
+      parkSearch: document.querySelector("#parkSearch"),
+      parkSelect: document.querySelector("#parkSelect"),
+      rideSelect: document.querySelector("#rideSelect"),
+      favoriteBtn: document.querySelector("#favoriteBtn"),
+      installBtn: document.querySelector("#installBtn"),
+      refreshBtn: document.querySelector("#refreshBtn"),
+      sortBtn: document.querySelector("#sortBtn"),
+      statusText: document.querySelector("#statusText"),
+      updatedText: document.querySelector("#updatedText"),
+      summary: document.querySelector("#summary"),
+      openCount: document.querySelector("#openCount"),
+      avgWait: document.querySelector("#avgWait"),
+      highestWait: document.querySelector("#highestWait"),
+      rideCount: document.querySelector("#rideCount"),
+      list: document.querySelector("#list"),
+      chips: Array.from(document.querySelectorAll(".chip")),
+    };
+
+    const state = {
+      parks: [],
+      currentParkId: "",
+      live: [],
+      sortMode: "wait",
+      lastFetch: 0,
+      filter: "",
+      favorites: new Set(JSON.parse(localStorage.getItem(FAVORITES_KEY) || "[]")),
+      autoRefreshTimer: null,
+      deferredInstallPrompt: null,
+    };
+
+    function setStatus(message, loading = false) {
+      els.statusText.innerHTML = loading ? `<span class="spinner"></span>${message}` : message;
+    }
+
+    function normalizeStatus(status = "") {
+      return String(status || "UNKNOWN").toUpperCase().replaceAll("_", " ");
+    }
+
+    function groupName(entry) {
+      const status = normalizeStatus(entry.status);
+      const queue = entry.queue || {};
+      if (queue.BOARDING_GROUP || queue.PAID_RETURN_TIME || queue.RETURN_TIME) return "Virtual Queue / Return Times";
+      if (status === "OPERATING") return "Open";
+      if (status.includes("DOWN")) return "Down";
+      if (status.includes("CLOSED")) return "Closed";
+      if (status.includes("REFURBISHMENT")) return "Refurbishment";
+      return "Other";
+    }
+
+    function getStandbyWait(entry) {
+      const q = entry.queue || {};
+      const standby = q.STANDBY || q.standby || q.Standby;
+      const wait = standby?.waitTime ?? standby?.wait_time ?? entry.waitTime ?? entry.wait_time;
+      return Number.isFinite(Number(wait)) ? Number(wait) : null;
+    }
+
+    function waitColor(wait) {
+      if (wait === null) return "";
+      if (wait <= 20) return "green";
+      if (wait <= 45) return "yellow";
+      if (wait <= 75) return "orange";
+      return "red";
+    }
+
+    function formatTime(value) {
+      if (!value) return "";
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return "";
+      return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+    }
+
+    function debounce(fn, ms = 180) {
+      let t;
+      return (...args) => {
+        clearTimeout(t);
+        t = setTimeout(() => fn(...args), ms);
+      };
+    }
+
+    async function fetchJson(url) {
+      const res = await fetch(url, { headers: { "Accept": "application/json" } });
+      if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+      return res.json();
+    }
+
+    function flattenParks(payload) {
+      const destinations = payload.destinations || payload || [];
+      return destinations.flatMap(destination => {
+        const destinationName = destination.name || "Unknown destination";
+        return (destination.parks || [])
+          .filter(park => park.id && park.name)
+          .map(park => ({
+            id: park.id,
+            name: park.name,
+            destinationName,
+            timezone: park.timezone || destination.timezone || "",
+          }));
+      }).sort((a, b) => {
+        const af = state.favorites.has(a.id) ? 0 : 1;
+        const bf = state.favorites.has(b.id) ? 0 : 1;
+        return af - bf || `${a.name} ${a.destinationName}`.localeCompare(`${b.name} ${b.destinationName}`);
+      });
+    }
+
+    function parkMatchesFilter(park) {
+      const haystack = `${park.name} ${park.destinationName}`.toLowerCase();
+      if (!state.filter) return true;
+      if (state.filter === "favorite") return state.favorites.has(park.id);
+      return haystack.includes(state.filter);
+    }
+
+    function renderParkOptions() {
+      const q = els.parkSearch.value.trim().toLowerCase();
+      const filtered = state.parks.filter(park =>
+        parkMatchesFilter(park) && `${park.name} ${park.destinationName}`.toLowerCase().includes(q)
+      );
+
+      els.parkSelect.innerHTML = "";
+      if (!filtered.length) {
+        els.parkSelect.append(new Option("No parks found", ""));
+        return;
+      }
+
+      els.parkSelect.append(new Option(`Choose a park (${filtered.length})`, ""));
+      for (const park of filtered) {
+        const star = state.favorites.has(park.id) ? "★ " : "";
+        const option = new Option(`${star}${park.name} — ${park.destinationName}`, park.id);
+        els.parkSelect.append(option);
+      }
+
+      if (filtered.some(p => p.id === state.currentParkId)) {
+        els.parkSelect.value = state.currentParkId;
+      }
+    }
+
+    async function loadParks() {
+      setStatus("Loading supported parks…", true);
+      els.parkSelect.disabled = true;
+      try {
+        const payload = await fetchJson(`${API}/destinations`);
+        state.parks = flattenParks(payload);
+        renderParkOptions();
+        setStatus(`${state.parks.length} parks loaded.`);
+        els.parkSelect.disabled = false;
+      } catch (err) {
+        setStatus("Could not load parks.");
+        els.list.innerHTML = `<div class="card error">ThemeParks.wiki could not be reached: ${escapeHtml(err.message)}</div>`;
+      }
+    }
+
+    function startAutoRefresh() {
+      clearInterval(state.autoRefreshTimer);
+      state.autoRefreshTimer = setInterval(() => {
+        if (els.parkSelect.value && !document.hidden) loadLiveData(true, true);
+      }, FIVE_MINUTES);
+    }
+
+    async function loadLiveData(force = false, isAuto = false) {
+      const parkId = els.parkSelect.value;
+      if (!parkId) return;
+
+      const now = Date.now();
+      if (!force && parkId === state.currentParkId && now - state.lastFetch < FIVE_MINUTES) {
+        renderRides();
+        return;
+      }
+
+      state.currentParkId = parkId;
+      state.lastFetch = now;
+      state.live = [];
+      els.rideSelect.disabled = true;
+      els.rideSelect.innerHTML = `<option value="">Loading rides…</option>`;
+      els.refreshBtn.disabled = true;
+      els.sortBtn.disabled = true;
+      els.favoriteBtn.disabled = false;
+      els.summary.hidden = true;
+      if (!isAuto) els.list.innerHTML = "";
+      setStatus(isAuto ? "Auto-refreshing wait times…" : "Loading live wait times…", true);
+      updateFavoriteButton();
+
+      try {
+        const payload = await fetchJson(`${API}/entity/${parkId}/live`);
+        state.live = payload.liveData || payload || [];
+        populateRideDropdown();
+        els.updatedText.textContent = `Updated ${new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`;
+        els.refreshBtn.disabled = false;
+        els.sortBtn.disabled = false;
+        setStatus("Live wait times loaded.");
+        renderRides();
+        startAutoRefresh();
+      } catch (err) {
+        els.refreshBtn.disabled = false;
+        setStatus("Could not load wait times.");
+        els.list.innerHTML = `<div class="card error">Live data failed: ${escapeHtml(err.message)}</div>`;
+      }
+    }
+
+    function getAllAttractions() {
+      return state.live.filter(entry => entry.entityType === "ATTRACTION" || entry.entityType === "RIDE" || entry.queue);
+    }
+
+    function getRideKey(entry) {
+      return entry.id || entry.entityId || entry.name || "";
+    }
+
+    function populateRideDropdown() {
+      const attractions = getAllAttractions().sort((a, b) => String(a.name).localeCompare(String(b.name)));
+      els.rideSelect.innerHTML = "";
+
+      if (!attractions.length) {
+        els.rideSelect.append(new Option("No rides available", ""));
+        els.rideSelect.disabled = true;
+        return;
+      }
+
+      els.rideSelect.append(new Option(`All rides (${attractions.length})`, ""));
+      for (const ride of attractions) {
+        const wait = getStandbyWait(ride);
+        const suffix = wait === null ? normalizeStatus(ride.status).toLowerCase() : `${wait} min`;
+        els.rideSelect.append(new Option(`${ride.name || "Unnamed attraction"} — ${suffix}`, getRideKey(ride)));
+      }
+      els.rideSelect.disabled = false;
+    }
+
+    function sortRides(rides) {
+      return rides.sort((a, b) => {
+        if (state.sortMode === "wait") {
+          const aw = getStandbyWait(a);
+          const bw = getStandbyWait(b);
+          if (aw === null && bw === null) return String(a.name).localeCompare(String(b.name));
+          if (aw === null) return 1;
+          if (bw === null) return -1;
+          return bw - aw || String(a.name).localeCompare(String(b.name));
+        }
+        if (state.sortMode === "status") {
+          return groupName(a).localeCompare(groupName(b)) || String(a.name).localeCompare(String(b.name));
+        }
+        return String(a.name).localeCompare(String(b.name));
+      });
+    }
+
+    function getFilteredRides() {
+      const selectedRide = els.rideSelect.value;
+      let rides = getAllAttractions();
+      if (selectedRide) rides = rides.filter(entry => String(getRideKey(entry)) === selectedRide);
+      return sortRides(rides);
+    }
+
+    function renderRides() {
+      const rides = getFilteredRides();
+      const operating = rides.filter(r => normalizeStatus(r.status) === "OPERATING").length;
+      const waits = rides.map(getStandbyWait).filter(v => v !== null);
+      const avg = waits.length ? Math.round(waits.reduce((a, b) => a + b, 0) / waits.length) : null;
+      const high = waits.length ? Math.max(...waits) : null;
+
+      els.summary.hidden = false;
+      els.openCount.textContent = operating;
+      els.avgWait.textContent = avg === null ? "—" : `${avg}m`;
+      els.highestWait.textContent = high === null ? "—" : `${high}m`;
+      els.rideCount.textContent = rides.length;
+
+      if (!rides.length) {
+        els.list.innerHTML = `<div class="card empty">No attractions match your selection, or this park has no live attraction data right now.</div>`;
+        return;
+      }
+
+      const groups = new Map();
+      for (const ride of rides) {
+        const name = groupName(ride);
+        if (!groups.has(name)) groups.set(name, []);
+        groups.get(name).push(ride);
+      }
+
+      const preferredOrder = ["Open", "Virtual Queue / Return Times", "Down", "Closed", "Refurbishment", "Other"];
+      const groupHtml = preferredOrder
+        .filter(name => groups.has(name))
+        .map(name => `
+          <section class="group">
+            <h2 class="group-title">${escapeHtml(name)} · ${groups.get(name).length}</h2>
+            ${groups.get(name).map(renderRideCard).join("")}
+          </section>
+        `).join("");
+
+      els.list.innerHTML = groupHtml;
+    }
+
+    function renderRideCard(entry) {
+      const wait = getStandbyWait(entry);
+      const status = normalizeStatus(entry.status || "unknown");
+      const lastUpdated = formatTime(entry.lastUpdated);
+      const statusClass = status.toLowerCase().split(" ")[0];
+      const color = waitColor(wait);
+      return `
+        <article class="card ride">
+          <div>
+            <h2>${escapeHtml(entry.name || "Unnamed attraction")}</h2>
+            <div class="meta">
+              <span class="pill ${statusClass}">${escapeHtml(status.toLowerCase())}</span>
+              ${lastUpdated ? `<span>Last update ${lastUpdated}</span>` : ""}
+            </div>
+          </div>
+          <div class="wait ${color}">${wait === null ? "—" : wait}<small>${wait === null ? "no wait" : "min"}</small></div>
+        </article>`;
+    }
+
+    function updateFavoriteButton() {
+      const parkId = els.parkSelect.value;
+      const isFav = state.favorites.has(parkId);
+      els.favoriteBtn.textContent = isFav ? "★ Favorited" : "☆ Favorite park";
+      els.favoriteBtn.disabled = !parkId;
+    }
+
+    function toggleFavorite() {
+      const parkId = els.parkSelect.value;
+      if (!parkId) return;
+      if (state.favorites.has(parkId)) state.favorites.delete(parkId);
+      else state.favorites.add(parkId);
+      localStorage.setItem(FAVORITES_KEY, JSON.stringify([...state.favorites]));
+      state.parks = [...state.parks].sort((a, b) => {
+        const af = state.favorites.has(a.id) ? 0 : 1;
+        const bf = state.favorites.has(b.id) ? 0 : 1;
+        return af - bf || `${a.name} ${a.destinationName}`.localeCompare(`${b.name} ${b.destinationName}`);
+      });
+      updateFavoriteButton();
+      renderParkOptions();
+    }
+
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>'"]/g, char => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#039;", '"': "&quot;"
+      }[char]));
+    }
+
+    function setupPwa() {
+      const manifest = {
+        name: "Theme Park Wait Times",
+        short_name: "Park Waits",
+        start_url: ".",
+        display: "standalone",
+        background_color: "#07111f",
+        theme_color: "#07111f",
+        icons: [
+          {
+            src: "data:image/svg+xml," + encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='96' fill='#07111f'/><path d='M96 352c64-160 256-160 320 0' fill='none' stroke='#76a9ff' stroke-width='34' stroke-linecap='round'/><circle cx='256' cy='196' r='68' fill='#2ee59d'/></svg>`),
+            sizes: "512x512",
+            type: "image/svg+xml"
+          }
+        ]
+      };
+      const link = document.createElement("link");
+      link.rel = "manifest";
+      link.href = "data:application/manifest+json," + encodeURIComponent(JSON.stringify(manifest));
+      document.head.append(link);
+
+      window.addEventListener("beforeinstallprompt", event => {
+        event.preventDefault();
+        state.deferredInstallPrompt = event;
+        els.installBtn.hidden = false;
+      });
+
+      els.installBtn.addEventListener("click", async () => {
+        if (!state.deferredInstallPrompt) return;
+        state.deferredInstallPrompt.prompt();
+        await state.deferredInstallPrompt.userChoice;
+        state.deferredInstallPrompt = null;
+        els.installBtn.hidden = true;
+      });
+    }
+
+    els.parkSearch.addEventListener("input", debounce(renderParkOptions));
+    els.parkSelect.addEventListener("change", () => {
+      updateFavoriteButton();
+      loadLiveData(true);
+    });
+    els.rideSelect.addEventListener("change", renderRides);
+    els.favoriteBtn.addEventListener("click", toggleFavorite);
+    els.refreshBtn.addEventListener("click", () => loadLiveData(true));
+    els.sortBtn.addEventListener("click", () => {
+      state.sortMode = state.sortMode === "wait" ? "status" : state.sortMode === "status" ? "name" : "wait";
+      els.sortBtn.textContent = `Sort: ${state.sortMode[0].toUpperCase()}${state.sortMode.slice(1)}`;
+      renderRides();
+    });
+
+    els.chips.forEach(chip => {
+      chip.addEventListener("click", () => {
+        state.filter = chip.dataset.filter || "";
+        els.chips.forEach(c => c.classList.toggle("active", c === chip));
+        renderParkOptions();
+      });
+    });
+
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden && els.parkSelect.value && Date.now() - state.lastFetch >= FIVE_MINUTES) {
+        loadLiveData(true, true);
+      }
+    });
+
+    setupPwa();
+    loadParks();
+  </script>
+</body>
+</html>
