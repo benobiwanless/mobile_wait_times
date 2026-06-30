@@ -37,9 +37,17 @@
     }
 
     .app {
-      width: min(800px, 100%);
+      width: min(720px, 100%);
       margin: 0 auto;
-      padding: max(18px, env(safe-area-inset-top)) 14px max(24px, env(safe-area-inset-bottom));
+      padding: max(18px, env(safe-area-inset-top)) 18px max(24px, env(safe-area-inset-bottom));
+    }
+
+    body:not(.park-selected) .post-park {
+      display: none !important;
+    }
+
+    body:not(.park-selected) footer {
+      display: none;
     }
 
     header {
@@ -52,10 +60,10 @@
     }
 
     h1 {
-      margin: 4px 4px 12px;
-      font-size: clamp(1.35rem, 6vw, 2rem);
+      margin: 4px 4px 14px;
+      font-size: clamp(1.45rem, 7vw, 2rem);
       letter-spacing: -.045em;
-      line-height: 1;
+      line-height: 1.05;
     }
 
     .controls {
@@ -102,7 +110,7 @@
       display: flex;
       gap: 8px;
       overflow-x: auto;
-      padding: 2px 2px 4px;
+      padding: 0 2px 2px;
       scrollbar-width: none;
     }
 
@@ -152,16 +160,20 @@
       display: flex;
       justify-content: space-between;
       gap: 10px;
-      font-size: .82rem;
+      font-size: .8rem;
       flex-wrap: wrap;
     }
 
+    body:not(.park-selected) #updatedText {
+      display: none;
+    }
+
     .park-summary {
-      margin: 14px 0;
+      margin: 12px 0;
       background: var(--panel);
       border: 1px solid var(--line);
-      border-radius: var(--radius);
-      padding: 14px;
+      border-radius: 18px;
+      padding: 12px;
       box-shadow: var(--shadow);
     }
 
@@ -206,8 +218,8 @@
     .card {
       background: var(--panel);
       border: 1px solid var(--line);
-      border-radius: var(--radius);
-      padding: 14px;
+      border-radius: 18px;
+      padding: 12px;
       box-shadow: var(--shadow);
     }
 
@@ -325,11 +337,11 @@
           <button class="chip" data-filter="favorite">★ Favorites</button>
         </div>
 
-        <select id="rideSelect" class="wide" aria-label="Choose a ride" disabled>
-          <option value="">Choose a park first…</option>
+        <select id="rideSelect" class="wide post-park" aria-label="Choose a ride" disabled>
+          <option value="">Choose a park first</option>
         </select>
 
-        <div class="action-row wide">
+        <div class="action-row wide post-park">
           <button id="favoriteBtn" class="secondary icon-btn" disabled title="Favorite park">☆ Favorite</button>
           <button id="refreshBtn" disabled>Refresh</button>
           <select id="sortSelect" aria-label="Sort rides" disabled>
@@ -359,10 +371,10 @@
       </div>
     </section>
 
-    <section id="list" class="list" aria-live="polite"></section>
+    <section id="list" class="list" aria-live="polite"><div class="card empty">Choose a park to see live wait times.</div></section>
 
-    <footer>
-      Data from ThemeParks.wiki. Auto-refresh runs every 5 minutes while a park is selected. Live data depends on what each park publishes and may be missing or stale when a park is closed.
+    <footer class="post-park">
+      Data from ThemeParks.wiki. Auto-refresh runs every 5 minutes.
     </footer>
   </main>
 
@@ -405,6 +417,10 @@
 
     function setStatus(message, loading = false) {
       els.statusText.innerHTML = loading ? `<span class="spinner"></span>${message}` : message;
+    }
+
+    function setParkSelected(isSelected) {
+      document.body.classList.toggle("park-selected", Boolean(isSelected));
     }
 
     function normalizeStatus(status = "") {
@@ -515,7 +531,7 @@
         const payload = await fetchJson(`${API}/destinations`);
         state.parks = flattenParks(payload);
         renderParkOptions();
-        setStatus(`${state.parks.length} parks loaded.`);
+        setStatus(`Choose a park to begin.`);
         els.parkSelect.disabled = false;
       } catch (err) {
         setStatus("Could not load parks.");
@@ -541,6 +557,7 @@
       }
 
       state.currentParkId = parkId;
+      setParkSelected(true);
       state.lastFetch = now;
       state.live = [];
       els.rideSelect.disabled = true;
@@ -754,6 +771,13 @@
     els.parkSearch.addEventListener("input", debounce(renderParkOptions));
     els.parkSelect.addEventListener("change", () => {
       updateFavoriteButton();
+      if (!els.parkSelect.value) {
+        setParkSelected(false);
+        els.summary.hidden = true;
+        els.list.innerHTML = `<div class="card empty">Choose a park to see live wait times.</div>`;
+        setStatus(`Choose a park to begin.`);
+        return;
+      }
       loadLiveData(true);
     });
     els.rideSelect.addEventListener("change", renderRides);
