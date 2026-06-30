@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#07111f" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-title" content="Park Waits" />
-  <title>Theme Park Wait Times v13</title>
+  <title>Theme Park Wait Times v14</title>
   <style>
     :root {
       --bg: #07111f;
@@ -370,9 +370,8 @@
         <div class="action-row wide post-park">
           <button id="refreshBtn" disabled>Refresh</button>
           <select id="sortSelect" aria-label="Sort rides" disabled>
-            <option value="wait" selected>Sort: Wait</option>
+            <option value="wait" selected>Longest First</option>
             <option value="name">Sort: Name</option>
-            <option value="status">Sort: Status</option>
           </select>
         </div>
         <button id="installBtn" class="secondary wide" hidden>Install app</button>
@@ -457,13 +456,7 @@
 
     function groupName(entry) {
       const status = normalizeStatus(entry.status);
-      const queue = entry.queue || {};
-      if (queue.BOARDING_GROUP || queue.PAID_RETURN_TIME || queue.RETURN_TIME) return "Virtual Queue / Return Times";
-      if (status === "OPERATING") return "Open";
-      if (status.includes("DOWN")) return "Down";
-      if (status.includes("CLOSED")) return "Closed";
-      if (status.includes("REFURBISHMENT")) return "Refurbishment";
-      return "Other";
+      return status === "OPERATING" ? "Open" : "Closed";
     }
 
     function getStandbyWait(entry) {
@@ -634,7 +627,7 @@
       els.rideSelect.append(new Option(`All rides (${attractions.length})`, ""));
       for (const ride of attractions) {
         const wait = getStandbyWait(ride);
-        const suffix = wait === null ? normalizeStatus(ride.status).toLowerCase() : `${wait} min`;
+        const suffix = wait === null ? "closed" : `${wait} min`;
         els.rideSelect.append(new Option(`${ride.name || "Unnamed attraction"} — ${suffix}`, getRideKey(ride)));
       }
       els.rideSelect.disabled = false;
@@ -642,18 +635,18 @@
 
     function sortRides(rides) {
       return rides.sort((a, b) => {
-        if (state.sortMode === "wait") {
-          const aw = getStandbyWait(a);
-          const bw = getStandbyWait(b);
-          if (aw === null && bw === null) return String(a.name).localeCompare(String(b.name));
-          if (aw === null) return 1;
-          if (bw === null) return -1;
-          return bw - aw || String(a.name).localeCompare(String(b.name));
+        const groupOrder = groupName(a).localeCompare(groupName(b));
+
+        if (state.sortMode === "name") {
+          return groupOrder || String(a.name).localeCompare(String(b.name));
         }
-        if (state.sortMode === "status") {
-          return groupName(a).localeCompare(groupName(b)) || String(a.name).localeCompare(String(b.name));
-        }
-        return String(a.name).localeCompare(String(b.name));
+
+        const aw = getStandbyWait(a);
+        const bw = getStandbyWait(b);
+        if (aw === null && bw === null) return groupOrder || String(a.name).localeCompare(String(b.name));
+        if (aw === null) return groupOrder || 1;
+        if (bw === null) return groupOrder || -1;
+        return groupOrder || bw - aw || String(a.name).localeCompare(String(b.name));
       });
     }
 
@@ -681,7 +674,7 @@
       els.summary.hidden = false;
       els.summaryParkName.textContent = park ? park.name : "Selected Park";
       updateSummaryFavoriteButton();
-      els.openClosedText.textContent = `${operating} Open • ${closed} Closed/Down • ${rides.length} Attractions`;
+      els.openClosedText.textContent = `${operating} Open • ${closed} Closed • ${rides.length} Attractions`;
       els.avgWaitText.textContent = avg === null ? "Average Wait: —" : `Average Wait: ${avg} min`;
       els.longestWaitText.textContent = high === null || !longestRide ? "Longest: —" : `Longest: ${longestRide.name} • ${high} min`;
       els.summaryUpdatedText.textContent = els.updatedText.textContent || "Updated —";
@@ -698,7 +691,7 @@
         groups.get(name).push(ride);
       }
 
-      const preferredOrder = ["Open", "Virtual Queue / Return Times", "Down", "Closed", "Refurbishment", "Other"];
+      const preferredOrder = ["Open", "Closed"];
       const groupHtml = preferredOrder
         .filter(name => groups.has(name))
         .map(name => `
@@ -713,9 +706,9 @@
 
     function renderRideCard(entry) {
       const wait = getStandbyWait(entry);
-      const status = normalizeStatus(entry.status || "unknown");
+      const status = groupName(entry);
       const lastUpdated = formatTime(entry.lastUpdated);
-      const statusClass = status.toLowerCase().split(" ")[0];
+      const statusClass = status.toLowerCase();
       const color = waitColor(wait);
       return `
         <article class="card ride">
