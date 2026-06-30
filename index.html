@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#07111f" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-title" content="Park Waits" />
-  <title>Theme Park Wait Times v11</title>
+  <title>Theme Park Wait Times v12</title>
   <style>
     :root {
       --bg: #07111f;
@@ -51,12 +51,9 @@
     }
 
     header {
-      position: sticky;
-      top: 0;
+      position: relative;
       z-index: 10;
       padding: 12px 0 14px;
-      backdrop-filter: blur(18px);
-      background: linear-gradient(to bottom, rgba(7,17,31,.97), rgba(7,17,31,.78), transparent);
     }
 
     h1 {
@@ -164,8 +161,12 @@
     }
 
     .park-summary {
+      position: sticky;
+      top: max(8px, env(safe-area-inset-top));
+      z-index: 20;
       margin: 12px 0;
-      background: var(--panel);
+      background: rgba(20, 29, 45, .94);
+      backdrop-filter: blur(18px);
       border: 1px solid var(--line);
       border-radius: 18px;
       padding: 12px;
@@ -173,9 +174,12 @@
     }
 
     .park-summary h2 {
-      margin: 0 0 8px;
-      font-size: 1.1rem;
+      margin: 0 0 6px;
+      font-size: 1.02rem;
       letter-spacing: -.025em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .summary-line {
