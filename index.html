@@ -102,6 +102,69 @@
 
     .quick-row::-webkit-scrollbar { display: none; }
 
+    .favorites-panel {
+      background: rgba(255,255,255,.07);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 10px;
+    }
+
+    .favorites-title {
+      color: var(--muted);
+      font-size: .78rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      margin: 0 2px 8px;
+    }
+
+    .favorites-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .favorite-item {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 9px;
+      align-items: center;
+      padding: 10px 11px;
+      border-radius: 14px;
+      background: rgba(255,255,255,.09);
+      border: 1px solid var(--line);
+      color: var(--text);
+      cursor: grab;
+      user-select: none;
+      touch-action: none;
+    }
+
+    .favorite-item:active { cursor: grabbing; }
+
+    .favorite-item.dragging {
+      opacity: .55;
+      transform: scale(.99);
+    }
+
+    .favorite-handle {
+      color: var(--muted);
+      font-weight: 900;
+      letter-spacing: -.08em;
+    }
+
+    .favorite-name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-weight: 750;
+    }
+
+    .favorite-open {
+      width: auto;
+      padding: 7px 10px;
+      border-radius: 999px;
+      font-size: .78rem;
+    }
+
     button {
       cursor: pointer;
       font-weight: 750;
@@ -311,6 +374,11 @@
           <button class="chip" data-filter="busch">Busch Gardens</button>
         </div>
 
+        <section id="favoritesPanel" class="favorites-panel wide" hidden>
+          <div class="favorites-title">Drag favorites to reorder</div>
+          <div id="favoritesList" class="favorites-list"></div>
+        </section>
+
         <select id="rideSelect" aria-label="Choose a ride" disabled>
           <option value="">Choose a park first…</option>
         </select>
@@ -352,6 +420,8 @@
       parkSearch: document.querySelector("#parkSearch"),
       parkSelect: document.querySelector("#parkSelect"),
       rideSelect: document.querySelector("#rideSelect"),
+      favoritesPanel: document.querySelector("#favoritesPanel"),
+      favoritesList: document.querySelector("#favoritesList"),
       favoriteBtn: document.querySelector("#favoriteBtn"),
       installBtn: document.querySelector("#installBtn"),
       refreshBtn: document.querySelector("#refreshBtn"),
@@ -374,6 +444,7 @@
       sortMode: "wait",
       lastFetch: 0,
       filter: "",
+      favoriteOrder: JSON.parse(localStorage.getItem(FAVORITES_KEY) || "[]"),
       favorites: new Set(JSON.parse(localStorage.getItem(FAVORITES_KEY) || "[]")),
       autoRefreshTimer: null,
       deferredInstallPrompt: null,
@@ -446,11 +517,29 @@
             destinationName,
             timezone: park.timezone || destination.timezone || "",
           }));
-      }).sort((a, b) => {
-        const af = state.favorites.has(a.id) ? 0 : 1;
-        const bf = state.favorites.has(b.id) ? 0 : 1;
-        return af - bf || `${a.name} ${a.destinationName}`.localeCompare(`${b.name} ${b.destinationName}`);
-      });
+      }).sort(sortParks);
+    }
+
+    function favoriteIndex(id) {
+      const idx = state.favoriteOrder.indexOf(id);
+      return idx === -1 ? 999999 : idx;
+    }
+
+    function sortParks(a, b) {
+      const af = state.favorites.has(a.id);
+      const bf = state.favorites.has(b.id);
+      if (af && bf) return favoriteIndex(a.id) - favoriteIndex(b.id);
+      if (af) return -1;
+      if (bf) return 1;
+      return `${a.name} ${a.destinationName}`.localeCompare(`${b.name} ${b.destinationName}`);
+    }
+
+    function saveFavorites() {
+      state.favoriteOrder = state.favoriteOrder.filter(id => state.favorites.has(id));
+      for (const id of state.favorites) {
+        if (!state.favoriteOrder.includes(id)) state.favoriteOrder.push(id);
+      }
+      localStorage.setItem(FAVORITES_KEY, JSON.stringify(state.favoriteOrder));
     }
 
     function parkMatchesFilter(park) {
@@ -462,6 +551,7 @@
 
     function renderParkOptions() {
       const q = els.parkSearch.value.trim().toLowerCase();
+      state.parks.sort(sortParks);
       const filtered = state.parks.filter(park =>
         parkMatchesFilter(park) && `${park.name} ${park.destinationName}`.toLowerCase().includes(q)
       );
@@ -469,6 +559,7 @@
       els.parkSelect.innerHTML = "";
       if (!filtered.length) {
         els.parkSelect.append(new Option("No parks found", ""));
+        renderFavoritesPanel();
         return;
       }
 
@@ -482,6 +573,7 @@
       if (filtered.some(p => p.id === state.currentParkId)) {
         els.parkSelect.value = state.currentParkId;
       }
+      renderFavoritesPanel();
     }
 
     async function loadParks() {
@@ -654,6 +746,93 @@
         </article>`;
     }
 
+    function renderFavoritesPanel() {
+      const favoriteParks = state.favoriteOrder
+        .filter(id => state.favorites.has(id))
+        .map(id => state.parks.find(park => park.id === id))
+        .filter(Boolean);
+
+      els.favoritesPanel.hidden = favoriteParks.length === 0;
+      els.favoritesList.innerHTML = "";
+
+      for (const park of favoriteParks) {
+        const item = document.createElement("div");
+        item.className = "favorite-item";
+        item.draggable = true;
+        item.dataset.parkId = park.id;
+        item.innerHTML = `
+          <span class="favorite-handle">☰</span>
+          <span class="favorite-name">★ ${escapeHtml(park.name)}</span>
+          <button class="favorite-open" type="button">Open</button>
+        `;
+
+        item.querySelector(".favorite-open").addEventListener("click", event => {
+          event.stopPropagation();
+          els.parkSelect.value = park.id;
+          updateFavoriteButton();
+          loadLiveData(true);
+        });
+
+        item.addEventListener("click", () => {
+          els.parkSelect.value = park.id;
+          updateFavoriteButton();
+          loadLiveData(true);
+        });
+
+        item.addEventListener("dragstart", () => {
+          item.classList.add("dragging");
+        });
+
+        item.addEventListener("dragend", () => {
+          finishFavoriteDrag(item);
+        });
+
+        item.addEventListener("pointerdown", event => {
+          if (event.target.closest("button")) return;
+          item.setPointerCapture(event.pointerId);
+          item.classList.add("dragging");
+        });
+
+        item.addEventListener("pointermove", event => {
+          if (!item.classList.contains("dragging")) return;
+          const after = getDragAfterElement(els.favoritesList, event.clientY);
+          if (after == null) els.favoritesList.appendChild(item);
+          else els.favoritesList.insertBefore(item, after);
+        });
+
+        item.addEventListener("pointerup", () => finishFavoriteDrag(item));
+        item.addEventListener("pointercancel", () => finishFavoriteDrag(item));
+
+        els.favoritesList.append(item);
+      }
+    }
+
+    els.favoritesList.addEventListener("dragover", event => {
+      event.preventDefault();
+      const dragging = els.favoritesList.querySelector(".dragging");
+      if (!dragging) return;
+      const after = getDragAfterElement(els.favoritesList, event.clientY);
+      if (after == null) els.favoritesList.appendChild(dragging);
+      else els.favoritesList.insertBefore(dragging, after);
+    });
+
+    function finishFavoriteDrag(item) {
+      item.classList.remove("dragging");
+      state.favoriteOrder = Array.from(els.favoritesList.querySelectorAll(".favorite-item")).map(el => el.dataset.parkId);
+      saveFavorites();
+      renderParkOptions();
+    }
+
+    function getDragAfterElement(container, y) {
+      const draggableElements = [...container.querySelectorAll(".favorite-item:not(.dragging)")];
+      return draggableElements.reduce((closest, child) => {
+        const box = child.getBoundingClientRect();
+        const offset = y - box.top - box.height / 2;
+        if (offset < 0 && offset > closest.offset) return { offset, element: child };
+        return closest;
+      }, { offset: Number.NEGATIVE_INFINITY }).element;
+    }
+
     function updateFavoriteButton() {
       const parkId = els.parkSelect.value;
       const isFav = state.favorites.has(parkId);
@@ -664,14 +843,15 @@
     function toggleFavorite() {
       const parkId = els.parkSelect.value;
       if (!parkId) return;
-      if (state.favorites.has(parkId)) state.favorites.delete(parkId);
-      else state.favorites.add(parkId);
-      localStorage.setItem(FAVORITES_KEY, JSON.stringify([...state.favorites]));
-      state.parks = [...state.parks].sort((a, b) => {
-        const af = state.favorites.has(a.id) ? 0 : 1;
-        const bf = state.favorites.has(b.id) ? 0 : 1;
-        return af - bf || `${a.name} ${a.destinationName}`.localeCompare(`${b.name} ${b.destinationName}`);
-      });
+      if (state.favorites.has(parkId)) {
+        state.favorites.delete(parkId);
+        state.favoriteOrder = state.favoriteOrder.filter(id => id !== parkId);
+      } else {
+        state.favorites.add(parkId);
+        if (!state.favoriteOrder.includes(parkId)) state.favoriteOrder.push(parkId);
+      }
+      saveFavorites();
+      state.parks.sort(sortParks);
       updateFavoriteButton();
       renderParkOptions();
     }
