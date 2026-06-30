@@ -102,68 +102,6 @@
 
     .quick-row::-webkit-scrollbar { display: none; }
 
-    .favorites-panel {
-      background: rgba(255,255,255,.07);
-      border: 1px solid var(--line);
-      border-radius: 18px;
-      padding: 10px;
-    }
-
-    .favorites-title {
-      color: var(--muted);
-      font-size: .78rem;
-      font-weight: 800;
-      text-transform: uppercase;
-      letter-spacing: .08em;
-      margin: 0 2px 8px;
-    }
-
-    .favorites-list {
-      display: grid;
-      gap: 8px;
-    }
-
-    .favorite-item {
-      display: grid;
-      grid-template-columns: auto 1fr auto;
-      gap: 9px;
-      align-items: center;
-      padding: 10px 11px;
-      border-radius: 14px;
-      background: rgba(255,255,255,.09);
-      border: 1px solid var(--line);
-      color: var(--text);
-      cursor: grab;
-      user-select: none;
-      touch-action: none;
-    }
-
-    .favorite-item:active { cursor: grabbing; }
-
-    .favorite-item.dragging {
-      opacity: .55;
-      transform: scale(.99);
-    }
-
-    .favorite-handle {
-      color: var(--muted);
-      font-weight: 900;
-      letter-spacing: -.08em;
-    }
-
-    .favorite-name {
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      font-weight: 750;
-    }
-
-    .favorite-open {
-      width: auto;
-      padding: 7px 10px;
-      border-radius: 999px;
-      font-size: .78rem;
-    }
 
     button {
       cursor: pointer;
@@ -375,7 +313,7 @@
         </div>
 
         <section id="favoritesPanel" class="favorites-panel wide" hidden>
-          <div class="favorites-title">Drag favorites to reorder</div>
+          <div class="favorites-title">Favorite parks appear first</div>
           <div id="favoritesList" class="favorites-list"></div>
         </section>
 
@@ -420,8 +358,6 @@
       parkSearch: document.querySelector("#parkSearch"),
       parkSelect: document.querySelector("#parkSelect"),
       rideSelect: document.querySelector("#rideSelect"),
-      favoritesPanel: document.querySelector("#favoritesPanel"),
-      favoritesList: document.querySelector("#favoritesList"),
       favoriteBtn: document.querySelector("#favoriteBtn"),
       installBtn: document.querySelector("#installBtn"),
       refreshBtn: document.querySelector("#refreshBtn"),
@@ -444,7 +380,6 @@
       sortMode: "wait",
       lastFetch: 0,
       filter: "",
-      favoriteOrder: JSON.parse(localStorage.getItem(FAVORITES_KEY) || "[]"),
       favorites: new Set(JSON.parse(localStorage.getItem(FAVORITES_KEY) || "[]")),
       autoRefreshTimer: null,
       deferredInstallPrompt: null,
@@ -559,7 +494,6 @@
       els.parkSelect.innerHTML = "";
       if (!filtered.length) {
         els.parkSelect.append(new Option("No parks found", ""));
-        renderFavoritesPanel();
         return;
       }
 
@@ -573,7 +507,6 @@
       if (filtered.some(p => p.id === state.currentParkId)) {
         els.parkSelect.value = state.currentParkId;
       }
-      renderFavoritesPanel();
     }
 
     async function loadParks() {
@@ -843,14 +776,10 @@
     function toggleFavorite() {
       const parkId = els.parkSelect.value;
       if (!parkId) return;
-      if (state.favorites.has(parkId)) {
-        state.favorites.delete(parkId);
-        state.favoriteOrder = state.favoriteOrder.filter(id => id !== parkId);
-      } else {
-        state.favorites.add(parkId);
-        if (!state.favoriteOrder.includes(parkId)) state.favoriteOrder.push(parkId);
-      }
-      saveFavorites();
+      if (state.favorites.has(parkId)) state.favorites.delete(parkId);
+      else state.favorites.add(parkId);
+      localStorage.setItem(FAVORITES_KEY, JSON.stringify([...state.favorites]));
+
       state.parks.sort(sortParks);
       updateFavoriteButton();
       renderParkOptions();
