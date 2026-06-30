@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#07111f" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-title" content="Park Waits" />
-  <title>Theme Park Wait Times</title>
+  <title>Theme Park Wait Times v11</title>
   <style>
     :root {
       --bg: #07111f;
@@ -97,13 +97,8 @@
 
     .action-row {
       display: grid;
-      grid-template-columns: 64px 1fr 118px;
+      grid-template-columns: 1fr 130px;
       gap: 10px;
-    }
-
-    .icon-btn {
-      padding-left: 10px;
-      padding-right: 10px;
     }
 
     .quick-row {
@@ -319,6 +314,7 @@
 
     @media (max-width: 420px) {
       .summary { grid-template-columns: repeat(2, 1fr); }
+      .action-row { grid-template-columns: 1fr 120px; }
     }
   </style>
 </head>
@@ -342,7 +338,6 @@
         </select>
 
         <div class="action-row wide post-park">
-          <button id="favoriteBtn" class="secondary icon-btn" disabled title="Favorite park">☆ Favorite</button>
           <button id="refreshBtn" disabled>Refresh</button>
           <select id="sortSelect" aria-label="Sort rides" disabled>
             <option value="wait" selected>Sort: Wait</option>
@@ -387,7 +382,6 @@
       parkSearch: document.querySelector("#parkSearch"),
       parkSelect: document.querySelector("#parkSelect"),
       rideSelect: document.querySelector("#rideSelect"),
-      favoriteBtn: document.querySelector("#favoriteBtn"),
       installBtn: document.querySelector("#installBtn"),
       refreshBtn: document.querySelector("#refreshBtn"),
       sortSelect: document.querySelector("#sortSelect"),
@@ -564,11 +558,9 @@
       els.rideSelect.innerHTML = `<option value="">Loading rides…</option>`;
       els.refreshBtn.disabled = true;
       els.sortSelect.disabled = true;
-      els.favoriteBtn.disabled = false;
       els.summary.hidden = true;
       if (!isAuto) els.list.innerHTML = "";
       setStatus(isAuto ? "Auto-refreshing wait times…" : "Loading live wait times…", true);
-      updateFavoriteButton();
 
       try {
         const payload = await fetchJson(`${API}/entity/${parkId}/live`);
@@ -703,29 +695,6 @@
         </article>`;
     }
 
-    function updateFavoriteButton() {
-      const parkId = els.parkSelect.value;
-      const isFav = state.favorites.has(parkId);
-      els.favoriteBtn.textContent = isFav ? "★ Favorited" : "☆ Favorite";
-      els.favoriteBtn.title = isFav ? "Remove favorite" : "Favorite park";
-      els.favoriteBtn.disabled = !parkId;
-    }
-
-    function toggleFavorite() {
-      const parkId = els.parkSelect.value;
-      if (!parkId) return;
-      if (state.favorites.has(parkId)) state.favorites.delete(parkId);
-      else state.favorites.add(parkId);
-      localStorage.setItem(FAVORITES_KEY, JSON.stringify([...state.favorites]));
-      state.parks = [...state.parks].sort((a, b) => {
-        const af = state.favorites.has(a.id) ? 0 : 1;
-        const bf = state.favorites.has(b.id) ? 0 : 1;
-        return af - bf || `${a.name} ${a.destinationName}`.localeCompare(`${b.name} ${b.destinationName}`);
-      });
-      updateFavoriteButton();
-      renderParkOptions();
-    }
-
     function escapeHtml(value) {
       return String(value).replace(/[&<>'"]/g, char => ({
         "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#039;", '"': "&quot;"
@@ -770,7 +739,6 @@
 
     els.parkSearch.addEventListener("input", debounce(renderParkOptions));
     els.parkSelect.addEventListener("change", () => {
-      updateFavoriteButton();
       if (!els.parkSelect.value) {
         setParkSelected(false);
         els.summary.hidden = true;
@@ -781,7 +749,6 @@
       loadLiveData(true);
     });
     els.rideSelect.addEventListener("change", renderRides);
-    els.favoriteBtn.addEventListener("click", toggleFavorite);
     els.refreshBtn.addEventListener("click", () => loadLiveData(true));
     els.sortSelect.addEventListener("change", () => {
       state.sortMode = els.sortSelect.value;
